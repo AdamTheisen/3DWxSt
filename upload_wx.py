@@ -5,6 +5,7 @@ from apiclient import discovery
 from httplib2 import Http
 from oauth2client import file, client, tools
 import glob
+import json
 
 SCOPES = 'https://www.googleapis.com/auth/drive'
 store = file.Storage('storage.json')
@@ -17,12 +18,10 @@ DRIVE = discovery.build('drive', 'v3', http=creds.authorize(Http()))
 path='/home/pi/data/cimms/'
 
 dirs = glob.glob(path+'*')
-dir_id = {'bmp':'1NifLqgbsDngWmMga9iBrD1GdrvQLuJB3',
-    'htu':'1EuIzG41Ucx75HEx-skxx0Ca7p9Kbxnes',
-    'master':'1_gdr6WYClP0NDcmy7nvAU-sE5qB2sGM6',
-    'mcp1':'1GL1M7imJ_EOMnzhu20ria-5KGv_AATG-',
-    'mcp2':'1aZbBJf9tUf7_gDxxaPl_XYJcuHbQi4Sa',
-    'si':'1ymSq6GGP7qkrtkH8ag-OCzA6eV9NHWFI'}
+
+id_filename = '/home/pi/software/CIMMS_Station/ids.json'
+with open(id_filename) as f:
+    dir_id = json.load(f)
 
 date = dt.datetime.now()-dt.timedelta(days=1)
 prev_date = ''.join([str(date.year).zfill(4),str(date.month).zfill(2),
