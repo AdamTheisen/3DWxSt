@@ -3,6 +3,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import datetime as dt
+import time as ptime
 
 plot_dir = '/var/www/html/plots/'
 data_dir = '/home/pi/data/cimms/master/'
@@ -11,6 +12,7 @@ print("Finding Files")
 time = dt.datetime.now()
 cdate = ''.join([str(time.year).zfill(4),str(time.month).zfill(2),
     str(time.day).zfill(2)])
+ptime.sleep(5)
 files = ''.join([data_dir,'cimms_wxst_',cdate,'.csv'])
 
 print('Reading Data: ',files)
