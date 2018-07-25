@@ -8,10 +8,10 @@ import glob
 import json
 
 SCOPES = 'https://www.googleapis.com/auth/drive'
-store = file.Storage('storage.json')
+store = file.Storage('/home/pi/software/CIMMS_Station/storage.json')
 creds = store.get()
 if not creds or creds.invalid:
-    flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
+    flow = client.flow_from_clientsecrets('/home/pi/software/CIMMS_Station/client_secret.json', SCOPES)
     creds = tools.run_flow(flow, store)
 DRIVE = discovery.build('drive', 'v3', http=creds.authorize(Http()))
 
