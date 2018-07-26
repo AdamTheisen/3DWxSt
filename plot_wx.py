@@ -31,10 +31,13 @@ myFmt = matplotlib.dates.DateFormatter("%H:%M")
 ax = fig.add_subplot(4,1,1)
 ax.xaxis_date()
 ax.set_title('Temperature')
+mcp2_offset = 0.14
+htu_offset = 0.577
+bmp_offset = 1.53
 ax.plot_date(time,df['mcp1_temp'])
-ax.plot_date(time,df['mcp2_temp'])
-ax.plot_date(time,df['htu_temp'])
-ax.plot_date(time,df['bmp_temp'])
+ax.plot_date(time,df['mcp2_temp'])#-mcp2_offset)
+ax.plot_date(time,df['htu_temp'])#-htu_offset)
+ax.plot_date(time,df['bmp_temp'])#-bmp_offset)
 ax.xaxis.set_major_formatter(myFmt)
 ax.set_xlim(xrng)
 handles, labels = ax.get_legend_handles_labels()
@@ -48,7 +51,7 @@ ax.set_xlim(xrng)
 
 ax = fig.add_subplot(4,1,3)
 ax.set_title('BMP280 Pressure')
-ax.plot_date(time,df['bmp_pres'])
+ax.plot_date(time,df['bmp_pres']/100.)
 ax.xaxis.set_major_formatter(myFmt)
 ax.set_xlim(xrng)
 
