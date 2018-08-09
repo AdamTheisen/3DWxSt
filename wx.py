@@ -22,7 +22,13 @@ def main():
         mcp1.begin()
         mcp1_temp = mcp1.readTempC()
     except:
-        mcp1_temp = -9999.
+        try:
+            mcp1 = MCP9808.MCP9808()
+            mcp1.begin()
+            mcp1_temp = mcp1.readTempC()
+        except:
+            mcp1_temp = -9999.
+
     try:
         mcp2 = MCP9808.MCP9808(address=0x19)#Pi Temp
         mcp2.begin()
