@@ -67,14 +67,15 @@ ax.set_xlim(xrng)
 #Get Wind Data and Plots
 wfile = ''.join(['/home/pi/data/cimms/wind/wind_',cdate,'.csv'])
 names = ['wspd','wspd_max','wspd_min','wspd_std','wspd_med','wspd_ct',
-        'wdir','wdir_max','wdir_min','wdir_std','wdir_med','wdir_ct','dummy']
+        'wdir','wdir_max','wdir_min','wdir_std','wdir_ct','raw_min','raw_max',
+        'dummy']
 df = pd.read_csv(wfile,names=names,index_col=0)
 wtime = df.index
 wtime = [pd.Timestamp(t) for t in wtime]
 ax = fig.add_subplot(6,1,5)
 ax.set_title('Wind Speed and Direction')
 ax.plot_date(wtime,df['wspd'],'-b')
-ax.plot_date(wtime,df['wspd_max'],'.b')
+ax.plot_date(wtime,df['wspd_max'],'.r')
 ax2 = ax.twinx()
 ax2.plot_date(wtime,df['wdir'],color='g')
 ax2.set_ylim([0,360])
@@ -82,6 +83,8 @@ ax2.set_ylabel('Direction (deg)')
 ax.set_ylabel('Speed (m/s)')
 ax.xaxis.set_major_formatter(myFmt)
 ax.set_xlim(xrng)
+handles, labels = ax.get_legend_handles_labels()
+ax.legend(handles[::-1], labels[::-1])
 
 #Rain
 wfile = ''.join(['/home/pi/data/cimms/rain/rain_',cdate,'.csv'])
@@ -94,6 +97,9 @@ ax.set_title('Precipitation')
 ax.set_ylabel('Amount (mm)')
 ax.plot_date(wtime,df['precip'])
 ax.set_xlim(xrng)
+ax2 = ax.twinx()
+ax2.plot_date(wtime,np.cumsum(df['precip']),'-g')
+ax.set_ylabel('Cumulative (mm)')
 
 savename = ''.join([plot_dir,'master_',cdate,'.png'])
 print("Saving: ",savename)

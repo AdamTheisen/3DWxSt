@@ -41,6 +41,7 @@ while True:
         rain_list = [rain]
         prev_min = cur_min
     rain = 0.
+    start = datetime.datetime.now()
     time.sleep(sleep)
 
 
