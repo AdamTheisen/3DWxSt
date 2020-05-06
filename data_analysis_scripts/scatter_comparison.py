@@ -12,31 +12,44 @@ import operator
 import scipy.stats as stats
 import datetime as dt
 
+
 sdate = '20180815'
-#sdate = '20190415'
-edate = '20190416'
+#sdate = '20190116'
+#edate = '20190117'
+edate = '20190415'
 
 #sdate = '20180815'
 #edate = '20180930'
 
+# Say, "the default sans-serif font is COMIC SANS"
+matplotlib.rcParams['font.sans-serif'] = "Arial"
+# Then, "ALWAYS use sans-serif fonts"
+matplotlib.rcParams['font.family'] = "sans-serif"
+
 dates = act.utils.datetime_utils.dates_between(sdate,edate)
 
-meso_fields = ['tdry_1_5m', 'rh', 'pres','wspd_10m','wdir_10m','srad', 'prec_amt']
+meso_fields = ['tdry_1_5m', 'rh', 'pres','wspd_10m','wdir_10m','srad', 'prec_amt','tdry_1_5m', 'prec_amt']
 wxt_fields = ['mcp1', 'htu_rh', 'bmp_pres', 'windspeed_mean', 'wdir_vec_mean', 
-              'si_vis','total']
-fieldname = ['Temperature','Relative Humidity','Pressure','Wind Speed',
-             'Wind Direction','Radiation','Precipitation']
-ytitle = ['deg C','%','HPa','m/s','deg','W/m2','mm']
-xtitle = ['deg C','%','HPa','m/s','deg','counts','mm']
+              'si_vis','total','htu_temp', 'total']
+fieldname = ['Air Temperature','Relative Humidity','Atmospheric Pressure',
+             'Wind Speed','Wind Direction','Solar Radiation',
+             'Precipitation','Air Temperature', 'Rain Rate']
+ytitle = ['$^\circ$C','%','hPa','m/s','$^\circ$','W/m2','mm', '$^\circ$C', 'mm/hr']
+xtitle = ['$^\circ$C','%','hPa','m/s','$^\circ$','W/m2','mm', '$^\circ$C', 'mm/hr']
 
 for i,f in enumerate(meso_fields):
-    #if i != 6:
-    #    continue
+    if i !=  1:
+        continue
     time = []
     wxt = []
     mes = []
+    wxt_u = []
+    wxt_v = []
+    mes_u = []
+    mes_v = []
+    wxt_wind = []
     for d in dates:
-        if i == 6:
+        if i == 6 or i == 8:
             if d == dt.datetime(2018,8,15):
                 continue
         wxst_file = glob.glob('./cimmswxstX1.b1/master/*'+d.strftime('%Y%m%d')+'.csv')
@@ -90,10 +103,20 @@ for i,f in enumerate(meso_fields):
 
         if i == 3 or i ==4:
             new_obj = xr.merge([meso,wind])
+        elif i == 0 or i == 7 or i == 1:
+            new_obj = xr.merge([meso,master,wind])
+
         elif i == 6:
             rain = rain.resample(time='24h').sum()
             meso24 = meso.resample(time='24h').max()
             new_obj = xr.merge([meso24,rain])
+        elif i == 8:
+            new_obj = xr.merge([meso,rain])
+            meso_rain = np.append(np.diff(new_obj[f].values[:,0]),0)
+            idx = (meso_rain > 100.)
+            meso_rain[idx] = 0.
+            new_obj[meso_fields[i]].values[:, 0] = meso_rain * 12.
+            new_obj[wxt_fields[i]].values = new_obj[wxt_fields[i]].values * 12.
         else:
             new_obj = xr.merge([meso,master])
 
@@ -104,13 +127,22 @@ for i,f in enumerate(meso_fields):
             new_obj = new_obj.where(new_obj['bmp_pres'] > 900)
             new_obj = new_obj.where(new_obj['bmp_pres'] < 1100)
 
+        if i == 1:
+            new_obj[wxt_fields[i]].values = new_obj[wxt_fields[i]].values + (25. - new_obj[wxt_fields[7]].values) * (0-0.15)
+        if i == 2:
+            new_obj[wxt_fields[i]].values = new_obj[wxt_fields[i]].values + (25. - new_obj['mcp2'].values) * (0-0.015)
+
+
+        if i == 5:
+            new_obj[wxt_fields[i]].values = new_obj[wxt_fields[i]].values * 0.7 - 170.66
+
         time += list(new_obj['time'].values)
         if len(np.shape(new_obj[wxt_fields[i]].values)) > 2:
             wxt += list(new_obj[wxt_fields[i]].values[:,0,0])
-            print(new_obj)
-            sys.exit()
         else:
             wxt += list(new_obj[wxt_fields[i]].values)
+
+        #wxt_wind += list(new_obj['windspeed_mean'].values[:,0])
 
         mes += list(new_obj[meso_fields[i]].values[:,0])
 
@@ -118,13 +150,48 @@ for i,f in enumerate(meso_fields):
             print(new_obj)
             sys.exit()
 
+
     if len(np.shape(wxt)) > 1:
         wxt = np.reshape(wxt,len(wxt))
 
+    if i == 0 or i == 7:
+        idx = (wxt > 45.)
+        wxt[idx] = np.nan
+
+        #idx = (np.asarray(wxt_wind) < 8.)
+        #wxt[idx] = np.nan
+
+
+    if i == 1:
+        idx = (wxt > 100.)
+        wxt[idx] = 100.
+
+        idx = (wxt > 80.)
+        wxt[idx] = np.nan
+        #idx = (np.asarray(wxt_wind) >= 20.)
+        #wxt[idx] = np.nan
+    if i == 3:
+        mp = 4.87 / np.log(67.8 * 10. - 5.42)
+        print(mp)
+        mes = np.array(mes) * mp
+
+    #if i == 4:
+    #    idx = (np.asarray(wxt_wind) < 5.)
+    #    wxt[idx] = np.nan
+
+    if i == 5:
+        idx = (wxt < 0.)
+        wxt[idx] = np.nan
+    #if i == 8:
+        #idx = (np.asarray(wxt) == 0.) & (np.asarray(mes) == 0.)
+        #wxt = np.asarray(wxt)
+        #wxt[idx] = np.nan
+        #mes = np.asarray(mes)
+        #mes[idx] = np.nan
+
     colors = time
 
-    title = ' '.join([fieldname[i],'Comparison Between',
-                      dates[0].strftime('%Y%m%d'),'-',dates[-1].strftime('%Y%m%d')])
+    title = fieldname[i]
     fig, ax = plt.subplots(1,figsize=(9,8))
 
     sc = ax.scatter(wxt,mes,c=colors)
@@ -132,43 +199,99 @@ for i,f in enumerate(meso_fields):
     plt.xlabel('3D Weather Station ('+xtitle[i]+')')
     plt.ylabel('Mesonet ('+ytitle[i]+')')
     if i == 0:
-       plt.xlim([-15,40])
-       plt.ylim([-15,40])
-       ax.plot([-15,40],[-15,40],'--b')
+       plt.xlim([-15,45])
+       plt.ylim([-15,45])
+       ax.plot([-15,45],[-15,45],'--b')
     if i == 1:
-       plt.xlim([0,110])
-       plt.ylim([0,110])
-       ax.plot([0,110],[0,110],'--b')
+       plt.xlim([0,100])
+       plt.ylim([0,100])
+       ax.plot([0,100],[0,100],'--b')
     if i == 2:
        plt.xlim([940,1010])
        plt.ylim([940,1010])
        ax.plot([940,1010],[940,1010],'--b')
     if i == 3:
-       plt.xlim([0,15])
-       plt.ylim([0,15])
-       ax.plot([0,15],[0,15],'--b')
+       plt.xlim([0,18])
+       plt.ylim([0,18])
+       ax.plot([0,18],[0,18],'--b')
     if i == 4:
        plt.xlim([0,360])
        plt.ylim([0,360])
        ax.plot([0,360],[0,360],'--b')
+    if i == 5:
+       plt.xlim([0,1250])
+       plt.ylim([0,1250])
+       ax.plot([0,1250],[0,1250],'--b')
 
     if i == 6:
        plt.xlim([0,80])
        plt.ylim([0,80])
        ax.plot([0,80],[0,80],'--b')
+    if i == 7:
+       plt.xlim([-15,45])
+       plt.ylim([-15,45])
+       ax.plot([-15,45],[-15,45],'--b')
+    if i == 8:
+       plt.xlim([0,120])
+       plt.ylim([0,120])
+       ax.plot([0,120],[0,120],'--b')
 
-    diff = np.nanmean(list(map(operator.sub, wxt, mes)))
-    plt.text(0.99,-0.05, 'Average Diff = '+str(round(diff,2)),ha='right',va='center',transform=ax.transAxes)
+
+    plt.text(1.05,-0.025, 'Min(3D) = '+str(round(np.nanmin(wxt),2)),ha='left',va='center',transform=ax.transAxes)
+    plt.text(1.05,-0.05, 'Min(Meso) = '+str(round(np.nanmin(mes),2)),ha='left',va='center',transform=ax.transAxes)
+    plt.text(1.05,-0.075, 'Max(3D) = '+str(round(np.nanmax(wxt),2)),ha='left',va='center',transform=ax.transAxes)
+    plt.text(1.05,-0.1, 'Max(Meso) = '+str(round(np.nanmax(mes),2)),ha='left',va='center',transform=ax.transAxes)
+
+
+    if i == 4:
+        idx = (np.asarray(wxt) < 60.) & (np.asarray(mes) > 300.)
+        np.asarray(wxt)[idx] += 360.
+        idx = (np.asarray(mes) < 60.) & (np.asarray(wxt) > 300.)
+        np.asarray(mes)[idx] += 360.
+
+
+    try:
+        diff = np.nanmean(np.abs(list(map(operator.sub, wxt, mes))))
+    except:
+        print('failed on '+wxt_fields[i])
+        continue
 
     s1 = pd.Series(wxt)
     s2 = pd.Series(mes)
     cc = s1.corr(s2)
-    plt.text(0.99,-0.075, 'Correlation Coeff = '+str(round(cc,2)),ha='right',va='center',transform=ax.transAxes)
+
+    mse = np.nanmean((wxt - mes)**2)
+    rmse = np.sqrt(mse)
+    mask = ~np.isnan(mes) & ~np.isnan(wxt)
+  
+    try: 
+        linreg = stats.linregress(np.asarray(wxt)[mask], np.asarray(mes)[mask])
+    except:
+        print('failed on '+wxt_fields[i])
+        continue
+
+    stdev = np.sqrt(np.nanmean(np.abs(wxt - np.nanmean(mes))**2))
+    sem = stdev/np.sqrt(len(wxt))
+
+    plt.text(0.99, -0.05, 'SEM = '+str(round(sem,3)),ha='right',va='center',transform=ax.transAxes)
+    plt.text(0.99, -0.075, 'RMSE = '+str(round(rmse,2)),ha='right',va='center',transform=ax.transAxes)
+    plt.text(0.99, -0.1, 'Average Diff = '+str(round(diff,2)),ha='right',va='center',transform=ax.transAxes)
+
+    plt.plot(wxt, linreg.slope * wxt + linreg.intercept, 'k')
+    plt.text(0.01,-0.05, 'Slope = '+str(round(linreg.slope,2)),ha='left',va='center',transform=ax.transAxes)
+    plt.text(0.01,-0.075, 'Intercept = '+str(round(linreg.intercept,2)),ha='left',va='center',transform=ax.transAxes)
+    plt.text(0.01,-0.1, 'Correlation Coeff = '+str(round(linreg.rvalue,2)),ha='left',va='center',transform=ax.transAxes)
 
     cbar = plt.colorbar(sc, aspect=70)
-    cbar.ax.set_yticklabels(pd.to_datetime(cbar.get_ticks()).strftime(date_format='%-m/%-d/%y'))
+    cbar.ax.set_yticklabels(pd.to_datetime(cbar.get_ticks()).strftime(date_format='%d/%m/%Y'))
+    cbar.ax.set_ylabel('Date', rotation=90, labelpad=-80)
 
     #plt.tight_layout()
     plt.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.999)
-    plt.savefig('./images/scatter/'+wxt_fields[i]+'_'+meso_fields[i]+'_'+dates[0].strftime('%Y%m%d')+'_'+dates[-1].strftime('%Y%m%d')+'.png')
+    if i == 8:
+        plt.savefig('./images/scatter/'+'rain_rate_'+dates[0].strftime('%Y%m%d')+'_'+dates[-1].strftime('%Y%m%d')+'.png', dpi=300)
+    else:
+        plt.savefig('./images/scatter/'+wxt_fields[i]+'_'+meso_fields[i]+'_'+dates[0].strftime('%Y%m%d')+'_'+dates[-1].strftime('%Y%m%d')+'.png', dpi=300)
     plt.close()
+
+meso.close()
