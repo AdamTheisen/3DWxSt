@@ -34,12 +34,14 @@ wxt_fields = ['mcp1', 'htu_rh', 'bmp_pres', 'windspeed_mean', 'wdir_vec_mean',
 fieldname = ['Air Temperature','Relative Humidity','Atmospheric Pressure',
              'Wind Speed','Wind Direction','Solar Radiation',
              'Precipitation','Air Temperature', 'Rain Rate']
-ytitle = ['$^\circ$C','%','hPa','m/s','$^\circ$','W/m2','mm', '$^\circ$C', 'mm/hr']
-xtitle = ['$^\circ$C','%','hPa','m/s','$^\circ$','W/m2','mm', '$^\circ$C', 'mm/hr']
+ytitle = ['$^\circ$C','%','hPa','m $s^{-1}$','$^\circ$','W $m^{-2}$','mm', '$^\circ$C', 'mm $hr^{-1}$']
+xtitle = ['$^\circ$C','%','hPa','m $s^{-1}$','$^\circ$','W $m^{-2}$','mm', '$^\circ$C', 'mm $hr^{-1}$']
 
 for i,f in enumerate(meso_fields):
-    if i !=  1:
-        continue
+#    if i !=  8:
+#        continue
+
+    # Set up empty arrays to append to
     time = []
     wxt = []
     mes = []
@@ -49,9 +51,13 @@ for i,f in enumerate(meso_fields):
     mes_v = []
     wxt_wind = []
     for d in dates:
+
+        # Precip on this day was during set up
         if i == 6 or i == 8:
             if d == dt.datetime(2018,8,15):
                 continue
+
+        # Get all files for the day
         wxst_file = glob.glob('./cimmswxstX1.b1/master/*'+d.strftime('%Y%m%d')+'.csv')
         meso_file = glob.glob('./sgp05okmX1.b1/*'+d.strftime('%Y%m%d')+'*.cdf')
         wind_file = glob.glob('./cimmswxstX1.b1/wind/wind_'+d.strftime('%Y%m%d')+'.csv')
@@ -60,6 +66,7 @@ for i,f in enumerate(meso_fields):
         if len(meso_file) == 0 or len(wxst_file) == 0:
             continue
 
+        # Open mesonet files for the norman site
         meso = act.io.armfiles.read_netcdf(meso_file)
         meso = meso.sortby('time')
         meso = meso.where(meso['platform'] == b'NRMN',drop=True)
@@ -67,6 +74,7 @@ for i,f in enumerate(meso_fields):
         dummy[0] = np.array(0)
         meso['prec_amt'].values = dummy
 
+        # Get 3D weather station data
         if len(wxst_file) > 0:
             headers = ['mcp1','mcp2','htu_temp','htu_dp','htu_rh','bmp_temp',
                        'bmp_pres','bmp_alt','bmp_slp','si_vis','si_ir','uv']    
@@ -101,6 +109,7 @@ for i,f in enumerate(meso_fields):
         else:
             continue
 
+        # Depending on the variable, we might need to merge different datasets together
         if i == 3 or i ==4:
             new_obj = xr.merge([meso,wind])
         elif i == 0 or i == 7 or i == 1:
@@ -121,21 +130,26 @@ for i,f in enumerate(meso_fields):
             new_obj = xr.merge([meso,master])
 
         new_obj = new_obj.where(new_obj[f] > -100)
+
+        # Filter pressure data
         if i == 2:
             new_obj = new_obj.where(new_obj[f] > 900)
             new_obj = new_obj.where(new_obj[f] < 1100)
             new_obj = new_obj.where(new_obj['bmp_pres'] > 900)
             new_obj = new_obj.where(new_obj['bmp_pres'] < 1100)
 
+        # Adjust RH for temperature coefficient
         if i == 1:
             new_obj[wxt_fields[i]].values = new_obj[wxt_fields[i]].values + (25. - new_obj[wxt_fields[7]].values) * (0-0.15)
-        if i == 2:
-            new_obj[wxt_fields[i]].values = new_obj[wxt_fields[i]].values + (25. - new_obj['mcp2'].values) * (0-0.015)
+        #if i == 2:
+        #    new_obj[wxt_fields[i]].values = new_obj[wxt_fields[i]].values + (25. - new_obj['mcp2'].values) * (0-0.015)
 
 
+        # Apply slope and offset to radiation data
         if i == 5:
             new_obj[wxt_fields[i]].values = new_obj[wxt_fields[i]].values * 0.7 - 170.66
 
+        # Append all data
         time += list(new_obj['time'].values)
         if len(np.shape(new_obj[wxt_fields[i]].values)) > 2:
             wxt += list(new_obj[wxt_fields[i]].values[:,0,0])
@@ -146,6 +160,8 @@ for i,f in enumerate(meso_fields):
 
         mes += list(new_obj[meso_fields[i]].values[:,0])
 
+        # Both mesonet and 3D weather station should have same number of data points after 
+        # averaging to 5 minutes
         if len(wxt) != len(mes):
             print(new_obj)
             sys.exit()
@@ -162,12 +178,13 @@ for i,f in enumerate(meso_fields):
         #wxt[idx] = np.nan
 
 
+    # Apply addition constraints on the data
     if i == 1:
         idx = (wxt > 100.)
         wxt[idx] = 100.
 
-        idx = (wxt > 80.)
-        wxt[idx] = np.nan
+        #idx = (wxt > 80.)
+        #wxt[idx] = np.nan
         #idx = (np.asarray(wxt_wind) >= 20.)
         #wxt[idx] = np.nan
     if i == 3:
@@ -189,12 +206,14 @@ for i,f in enumerate(meso_fields):
         #mes = np.asarray(mes)
         #mes[idx] = np.nan
 
+    # Set colors to time
     colors = time
 
+    # Plot data
     title = fieldname[i]
     fig, ax = plt.subplots(1,figsize=(9,8))
 
-    sc = ax.scatter(wxt,mes,c=colors)
+    sc = ax.scatter(wxt,mes,c=colors, vmin=np.datetime64('2018-08-15T00:00:00.000000000'), vmax=np.datetime64('2019-04-16T00:00:00.000000000'))
     plt.title(title)
     plt.xlabel('3D Weather Station ('+xtitle[i]+')')
     plt.ylabel('Mesonet ('+ytitle[i]+')')
@@ -242,7 +261,7 @@ for i,f in enumerate(meso_fields):
     plt.text(1.05,-0.075, 'Max(3D) = '+str(round(np.nanmax(wxt),2)),ha='left',va='center',transform=ax.transAxes)
     plt.text(1.05,-0.1, 'Max(Meso) = '+str(round(np.nanmax(mes),2)),ha='left',va='center',transform=ax.transAxes)
 
-
+    # Adjust winds for comparison
     if i == 4:
         idx = (np.asarray(wxt) < 60.) & (np.asarray(mes) > 300.)
         np.asarray(wxt)[idx] += 360.
@@ -256,6 +275,8 @@ for i,f in enumerate(meso_fields):
         print('failed on '+wxt_fields[i])
         continue
 
+
+    # Calculate statistics    
     s1 = pd.Series(wxt)
     s2 = pd.Series(mes)
     cc = s1.corr(s2)
@@ -282,6 +303,7 @@ for i,f in enumerate(meso_fields):
     plt.text(0.01,-0.075, 'Intercept = '+str(round(linreg.intercept,2)),ha='left',va='center',transform=ax.transAxes)
     plt.text(0.01,-0.1, 'Correlation Coeff = '+str(round(linreg.rvalue,2)),ha='left',va='center',transform=ax.transAxes)
 
+    # Set Colorbar
     cbar = plt.colorbar(sc, aspect=70)
     cbar.ax.set_yticklabels(pd.to_datetime(cbar.get_ticks()).strftime(date_format='%d/%m/%Y'))
     cbar.ax.set_ylabel('Date', rotation=90, labelpad=-80)
