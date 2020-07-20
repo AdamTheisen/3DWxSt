@@ -14,9 +14,9 @@ import datetime as dt
 
 
 sdate = '20180815'
-#sdate = '20190116'
-#edate = '20190117'
+#sdate = '20180815'
 edate = '20190415'
+#edate = '20180915'
 
 #sdate = '20180815'
 #edate = '20180930'
@@ -38,8 +38,8 @@ ytitle = ['$^\circ$C','%','hPa','m $s^{-1}$','$^\circ$','W $m^{-2}$','mm', '$^\c
 xtitle = ['$^\circ$C','%','hPa','m $s^{-1}$','$^\circ$','W $m^{-2}$','mm', '$^\circ$C', 'mm $hr^{-1}$']
 
 for i,f in enumerate(meso_fields):
-#    if i !=  8:
-#        continue
+    #if i !=  4:
+    #    continue
 
     # Set up empty arrays to append to
     time = []
@@ -79,7 +79,7 @@ for i,f in enumerate(meso_fields):
             headers = ['mcp1','mcp2','htu_temp','htu_dp','htu_rh','bmp_temp',
                        'bmp_pres','bmp_alt','bmp_slp','si_vis','si_ir','uv']    
             master = act.io.csvfiles.read_csv(wxst_file[0],column_names=headers,engine='c')
-            master['index'].values = pd.to_datetime(master['index'].values)
+            master = master.assign_coords({'index': pd.to_datetime(master['index'].values)})
             master = master.sortby('index')
             master = master.rename({'index': 'time'})
             for v in master:
@@ -91,7 +91,7 @@ for i,f in enumerate(meso_fields):
                        'wdir_vec_mean','wdir_max','wdir_min','wdir_std','wdir_ct','raw_min',
                        'raw_max','dummy_wind']
             wind = act.io.csvfiles.read_csv(wind_file[0],column_names=headers,engine='c')
-            wind['index'].values = pd.to_datetime(wind['index'].values)
+            wind = wind.assign_coords({'index': pd.to_datetime(wind['index'].values)})
             wind = wind.sortby('index')
             wind = wind.rename({'index': 'time'})
             for v in wind:
@@ -100,7 +100,7 @@ for i,f in enumerate(meso_fields):
 
             headers = ['total','max_tips','rain_ct','precip_ct','dummy_rain']
             rain = act.io.csvfiles.read_csv(rain_file[0],column_names=headers,engine='c')
-            rain['index'].values = pd.to_datetime(rain['index'].values)
+            rain = rain.assign_coords({'index': pd.to_datetime(rain['index'].values)})
             rain = rain.sortby('index')
             rain = rain.rename({'index': 'time'})
             for v in rain:
@@ -156,7 +156,7 @@ for i,f in enumerate(meso_fields):
         else:
             wxt += list(new_obj[wxt_fields[i]].values)
 
-        #wxt_wind += list(new_obj['windspeed_mean'].values[:,0])
+        wxt_wind += list(new_obj['windspeed_mean'].values[:,0])
 
         mes += list(new_obj[meso_fields[i]].values[:,0])
 
@@ -189,12 +189,15 @@ for i,f in enumerate(meso_fields):
         #wxt[idx] = np.nan
     if i == 3:
         mp = 4.87 / np.log(67.8 * 10. - 5.42)
-        print(mp)
         mes = np.array(mes) * mp
 
-    #if i == 4:
-    #    idx = (np.asarray(wxt_wind) < 5.)
-    #    wxt[idx] = np.nan
+        if d >= dt.datetime(2019,2,16):
+            idx = (wxt == 0.)
+            wxt[idx] = np.nan
+
+    if i == 4:
+        idx = (np.asarray(wxt_wind) < 8.)
+        wxt[idx] = np.nan
 
     if i == 5:
         idx = (wxt < 0.)
@@ -263,9 +266,12 @@ for i,f in enumerate(meso_fields):
 
     # Adjust winds for comparison
     if i == 4:
-        idx = (np.asarray(wxt) < 60.) & (np.asarray(mes) > 300.)
+        idx = (np.asarray(wxt) < 1.) | (np.asarray(wxt) > 359)
+        wxt[idx] = np.nan
+
+        idx = (np.asarray(wxt) < 90.) & (np.asarray(mes) > 270.)
         np.asarray(wxt)[idx] += 360.
-        idx = (np.asarray(mes) < 60.) & (np.asarray(wxt) > 300.)
+        idx = (np.asarray(mes) < 90.) & (np.asarray(wxt) > 270.)
         np.asarray(mes)[idx] += 360.
 
 
